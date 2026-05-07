@@ -34,48 +34,69 @@ export default function App() {
   };
 
   const fetchPlaylistData = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const playlistId = getPlaylistId(playlistUrl);
+    const playlistId = getPlaylistId(playlistUrl);
 
-      if (!playlistId) {
-        alert("Invalid playlist URL");
-        return;
-      }
+    if (!playlistId) {
+      alert("Invalid playlist URL");
+      return;
+    }
 
+    let allVideoIds = [];
+    let nextPageToken = "";
+
+    // FETCH ALL PLAYLIST PAGES
+    do {
       const playlistRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${playlistId}&key=${API_KEY}`,
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=${playlistId}&pageToken=${nextPageToken}&key=${API_KEY}`
       );
 
       const playlistData = await playlistRes.json();
 
-      const videoIds = playlistData.items
-        .map((item) => item.contentDetails.videoId)
-        .join(",");
+      const ids = playlistData.items.map(
+        (item) => item.contentDetails.videoId
+      );
+
+      allVideoIds = [...allVideoIds, ...ids];
+
+      nextPageToken = playlistData.nextPageToken || "";
+    } while (nextPageToken);
+
+    // YOUTUBE VIDEOS API ALSO HAS LIMIT 50
+    let allDurations = [];
+
+    for (let i = 0; i < allVideoIds.length; i += 50) {
+      const chunk = allVideoIds.slice(i, i + 50);
 
       const videosRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${API_KEY}`,
+        `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${chunk.join(
+          ","
+        )}&key=${API_KEY}`
       );
 
       const videosData = await videosRes.json();
 
       const durations = videosData.items.map((video) =>
-        isoDurationToSeconds(video.contentDetails.duration),
+        isoDurationToSeconds(video.contentDetails.duration)
       );
 
-      setVideos(durations);
-
-      const total = durations.reduce((a, b) => a + b, 0);
-
-      setTotalDuration(formatTime(total));
-    } catch (error) {
-      console.error(error);
-      alert("Error loading playlist");
-    } finally {
-      setLoading(false);
+      allDurations = [...allDurations, ...durations];
     }
-  };
+
+    setVideos(allDurations);
+
+    const total = allDurations.reduce((a, b) => a + b, 0);
+
+    setTotalDuration(formatTime(total));
+  } catch (error) {
+    console.error(error);
+    alert("Error loading playlist");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const calculateRemaining = () => {
     const index = parseInt(videoNumber) - 1;
