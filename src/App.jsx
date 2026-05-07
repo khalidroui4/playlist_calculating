@@ -134,7 +134,7 @@ export default function App() {
             cursor: "pointer",
           }}
         >
-          {loading ? "Loading..." : "Analyze Playlist"}
+          {loading ? "Loading..." : "Playlist calcule"}
         </button>
 
         {videos.length > 0 && (
